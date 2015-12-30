@@ -13,37 +13,81 @@
       <h1>
         Building $.ajax
       </h1>
+      <pre id="output"></pre>
     </div>
 
     <script>
+      var puts = function() {
+        var output = document.getElementById('output');
+        for (var key in arguments) {
+          var arg = arguments[key];
+          output.innerHTML += JSON.stringify(arg, null, 2);
+          output.innerHTML += "\n";
+        }
+      };
+
       $.ajax({
         url: '/server.php',
         data: {
-          foo: {
-            bar: {
-              fiz: 'baz',
-              foo: [
-                'bar',
-                'fiz',
-                'baz'
-                ['foo'],
-                ['bar'],
-                {foo:'bar'}
-              ]
-            }
-          }
+          message: '$.ajax GET'
         },
         method: 'GET',
         success: function(response, status, xhr) {
           console.log(response, status, xhr);
+          puts(response, status, xhr);
         },
         error: function(xhr, status, error) {
           console.error(xhr, status, error);
+          puts(xhr, status, error);
         },
         complete: function(xhr, status) {
           console.log(xhr, status);
+          puts(xhr, status);
+        }
+      });
+
+      $.ajax({
+        url: '/server.php',
+        data: {
+          message: '$.ajax POST'
+        },
+        method: 'POST',
+        success: function(response, status, xhr) {
+          console.log(response, status, xhr);
+          puts(response, status, xhr);
+        },
+        error: function(xhr, status, error) {
+          console.error(xhr, status, error);
+          puts(xhr, status, error);
+        },
+        complete: function(xhr, status) {
+          console.log(xhr, status);
+          puts(xhr, status);
+        }
+      });
+
+      $.get({
+        url: '/server.php',
+        data: {
+          message: '$.get'
+        },
+        success: function(response, status, xhr) {
+          console.log(response, status, xhr);
+          puts(response, status, xhr);
+        }
+      });
+
+      $.post({
+        url: '/server.php',
+        data: {
+          message: '$.post'
+        },
+        success: function(response, status, xhr) {
+          console.log(response, status, xhr);
+          puts(response, status, xhr);
         }
       });
     </script>
   </body>
 </html>
+
