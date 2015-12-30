@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Building $.ajax Test</title>
+
+    <script src="https://code.jquery.com/jquery-2.1.4.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <h1>
+        Building $.ajax Test
+      </h1>
+    </div>
+
+    <script>
+      $.ajax({
+        url: '/server.php',
+        data: {
+          foo: 'bar',
+          foobar: {
+            foo: 'bar'
+          }
+        },
+        method: 'GET',
+        success: function(response, status, xhr) {
+          console.log(response, status, xhr);
+        },
+        error: function(xhr, status, error) {
+          console.error(xhr, status, error);
+        },
+        complete: function(xhr, status) {
+          console.log(xhr, status);
+        }
+      });
+    </script>
+  </body>
+</html>
