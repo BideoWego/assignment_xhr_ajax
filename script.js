@@ -220,6 +220,7 @@ var $ = (function() {
   $.ajax = function(url, options) {
     options = _setAJAXOptions(url, options);
 
+    // set defaults
     var context = (options['context']) ? options['context'] : options;
     var method = (options['method']) ? options['method'] : 'GET';
     var async = (options['async']) ? options['async'] : true;
@@ -229,40 +230,56 @@ var $ = (function() {
     var error = (options['error']) ? options['error'] : function(){};
 
     var data = (options['data']) ? options['data'] : null;
+
+    // serialize data if
+    // not string
     if (data && typeof data !== 'string') {
       data = $.serialize(data);
     }
 
+    // initialize request
     var status;
-    
     var xhr = new XMLHttpRequest();
 
+    // set error listener
     xhr.addEventListener('error', function(e) {
       status = 'error';
       error.call(context, xhr, status, xhr.statusText);
       complete.call(context, xhr, status);
     });
 
+    // set success/error
+    // listener
     xhr.addEventListener('load', function(e) {
       if (xhr.status >= 200 && xhr.status < 300) {
+        // if we're in the 200s
+        // we succeded
         status = 'success';
         success.call(context, xhr.responseText, status, xhr);
       } else {
+        // if outside 200 range
+        // error
         status = 'error';
         error.call(context, xhr, status, xhr.statusText);
       }
       complete.call(context, xhr, status);
     });
 
+    // if we have a GET request
+    // append the data as query string
     var url = (method === 'GET') ? options['url'] + '?' + data : options['url'];
 
+    // open request
     xhr.open(method, url, async);
 
+    // set POST headers
+    // if POST
     if (method &&
         method.toUpperCase() === 'POST') {
       xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
     }
 
+    // send request
     xhr.send(data);
   };
 
@@ -270,6 +287,9 @@ var $ = (function() {
   // Make a GET request
   // ----------------------------------------
   $.get = function(url, data, success, dataType) {
+    // ensure when have
+    // options set
+    // how the ajax method expects
     var options;
     if (typeof url === 'object') {
       options = url;
@@ -290,6 +310,9 @@ var $ = (function() {
   // Make a POST request
   // ----------------------------------------
   $.post = function(url, data, success, dataType) {
+    // ensure when have
+    // options set
+    // how the ajax method expects
     var options;
     if (typeof url === 'object') {
       options = url;
