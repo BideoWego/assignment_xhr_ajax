@@ -1,300 +1,312 @@
 "use strict";
 
-// $ constructor
-var $ = function $(options) {
-  // return a new instance 
-  // if not instantiated
-  if (!(this instanceof $)) {
-    return new $(options);
-  }
-};
+var $ = (function() {
 
-// just for fun...
-// doesn't handle nested values (yet)
-$.deserialize = function(queryString) {
-  queryString = queryString || window.location.search.slice(1);
+  // ----------------------------------------
+  // Constructor
+  // ----------------------------------------
+  var $ = function $(options) {
+    // return new instance
+    // unless instantiated
+    if (!(this instanceof $)) {
+      return new $(options);
+    }
+  };
 
-  // get param key value pairs
-  var pairs = queryString.split('&');
+  // ----------------------------------------
+  // $.deserialize helper methods
+  // ----------------------------------------
+  // returns true if the
+  // string is only digits
+  var _isInteger = function(str) {
+    return !!str.match(/^\d+$/);
+  };
 
-  // initialize return value
-  var result = {};
+  // remove surrounding brackets from
+  // query string keys
+  var _removeBrackets = function(keys) {
+    var noBrackets = [];
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      key = key.match(/^\[(.+)\]$/)[1];
+      noBrackets.push(key);
+    }
+    return noBrackets;
+  };
 
-  for (var i = 0; i < pairs.length; i++) {
-    // decode the key value pairs
-    var pair = pairs[i].split('=');
-    var key = decodeURIComponent(pair[0]);
-    var value = decodeURIComponent(pair[1] || '');
+  // convert an array to
+  // an object
+  var _arrayToObject = function(array) {
+    var object = {};
+    for (var key in array) {
+      object[key] = array[key];
+    }
+    return object;
+  };
 
-    // assume integer strings
-    // should be parsed as integers
-    value = (value.match(/^\d+$/)) ? parseInt(value) : value;
+  // creates an array or object
+  // at the next key in keys
+  // if it exists
+  // if the next key is not an
+  // integer the value at
+  // current key is casted to
+  // an object
+  var _initializeNextKey = function(object, keys, currentKey, currentIndex) {
+    var nextKey = keys[currentIndex + 1]; 
+    if (nextKey) {
+      if (!object[currentKey]) {
+        object[currentKey] = (_isInteger(nextKey)) ? [] : {};
+      }
+      if (Array.isArray(object[currentKey]) &&
+          !_isInteger(nextKey)) {
+        object[currentKey] = _arrayToObject(object[currentKey]);
+      }
+    }
+  };
 
-    // get top level key
-    var prefix = key.split('[')[0];
+  // returns an array where
+  // index 0 is the decoded key
+  // and index 1 is the decoded value
+  // value is parsed as an integer
+  // if it is a string of only integers
+  var _getDecodedParamPair = function(pair) {
+    pair = pair.split('=');
+    pair[0] = decodeURIComponent(pair[0]);
+    pair[1] = decodeURIComponent(pair[1] || '');
+    if (_isInteger(pair[1])) {
+      pair[1] = parseInt(pair[1]);
+    }
+    return pair;
+  };
 
-    // get nested keys
-    var matches = key.match(/\[([^\[\]]+)\]/g);
+  // sets the appropriate
+  // nested structure
+  // given the keys
+  // and sets the value
+  // at the final key
+  // on the given object
+  var _setNestedKeyValue = function(object, keys, value) {
+    var depth = object;
+    for (var j = 0; j < keys.length; j++) {
+      var key = keys[j];
+      _initializeNextKey(depth, keys, key, j);
+      if (j === keys.length - 1) {
+        depth[key] = value;
+      } else {
+        depth = depth[key];
+      }
+    }
+  };
 
-    if (matches) {
-      // prepend first key
-      // before nested keys
-      matches.unshift('[' + prefix + ']');
+  // sets the key on the
+  // given object to value
+  // casts the key to an integer
+  // if appropriate
+  // and removes empty brackets from
+  // the key
+  var _setKeyValue = function(object, key, value) {
+    key = (key.indexOf('[]') > -1) ? key.slice(0, -2) : key;
+    key = (_isInteger(key)) ? parseInt(key) : key;
+    object[key] = value;
+  };
 
-      // set object for
-      // recursive iteration
-      // at top level
-      var object = result;
-      for (var j = 0; j < matches.length; j++) {
-        // key index without brackets
-        var index = matches[j].match(/^\[(.+)\]$/)[1];
+  // returns an array of nested keys
+  // from the given key
+  var _getNestedKeys = function(key) {
+    var firstKey = key.split('[')[0];
+    var keys = key.match(/\[([^\[\]]+)\]/g);
+    keys = (keys) ? keys : [];
+    keys.unshift('[' + firstKey + ']');
+    keys = _removeBrackets(keys);
+    return keys;
+  };
 
-        // check if there
-        // is a next nested
-        // key
-        var nextIndex = matches[j + 1];
-        if (nextIndex) {
-          // if there is remove the brackets
-          nextIndex = nextIndex.match(/^\[(.+)\]$/)[1];
+  // returns an object
+  // that represents the given
+  // array of query string
+  // key value pairs
+  var _objectify = function(pairs) {
+    var result = {};
+    for (var i = 0; i < pairs.length; i++) {
+      var pair = _getDecodedParamPair(pairs[i]);
+      var key = pair[0];
+      var value = pair[1];
+      var keys = _getNestedKeys(key);
+      if (keys.length > 1) {
+        _setNestedKeyValue(result, keys, value);
+      } else {
+        _setKeyValue(result, key, value);
+      }
+    }
+    return result;
+  };
 
-          // if the current
-          // index doesn't
-          // exist create it
-          if (!object[index]) {
-            // if the next index
-            // is an integer
-            // create an array
-            // else create an object
-            object[index] = (nextIndex.match(/^\d+$/)) ? [] : {};
-          }
+  // ----------------------------------------
+  // Deserialize a query string into JSON
+  // ----------------------------------------
+  $.deserialize = function(query) {
+    query = query || window.location.search.slice(1);
+    var pairs = query.split('&');
+    var result = _objectify(pairs);
+    return JSON.parse(JSON.stringify(result));
+  };
 
-          // if the object at index
-          // is an array
-          // and next index is an integer
-          if (Array.isArray(object[index]) &&
-              !nextIndex.match(/^\d+$/)) {
-            // then reset the index
-            // as an object
-            var o = {};
-            for (var k in object[index]) {
-              o[k] = object[index][k];
-            }
-            object[index] = o;
-          }
-        }
+  // ----------------------------------------
+  // $.serialize helper methods
+  // ----------------------------------------
+  // returns an encoded query string
+  // from the key value pair
+  var _getEncodedParamPair = function(key, value) {
+    key = encodeURIComponent(key);
+    value = encodeURIComponent(value);
+    return key + '=' + value;
+  };
 
-        // if we're on the last index
-        if (j === matches.length - 1) {
-          if (Array.isArray(object)) {
-            // push if we can
-            object.push(value);
+  // serializes the object
+  // into a query string recursively
+  var _recursiveSerialize = function(object, prefix) {
+    var params = [];
+    for (var property in object) {
+      if (object.hasOwnProperty(property)) {
+        var key = (prefix) ? prefix + '[' + property + ']' : property;
+        var value = object[property];
+        var encoded;
+        if (typeof value === 'object') {
+          if ((Array.isArray(value) && value.length > 0) ||
+              (Object.keys(value).length > 0)) {
+            encoded = _recursiveSerialize(value, key);
           } else {
-            // else set value by key
-            object[index] = value;
+            encoded = key + '[]';
           }
         } else {
-          // if there are still nested
-          // keys
-          // tunnel down to the next level
-          // for the next iteration
-          // simulating recursion
-          object = object[index];
+          encoded = _getEncodedParamPair(key, value);
         }
+        params.push(encoded);
       }
-    } else {
-      // remove brackets from end of key
-      // if present
-      key = (key.indexOf('[]') > -1) ? key.replace('[]', '') : key;
-
-      // if key is only integers
-      // parse it as an integer
-      key = (key.match(/^\d+$/)) ? parseInt(key) : key;
-      result[key] = value;
     }
-  }
-  // return JSON object
-  return JSON.parse(JSON.stringify(result));
-};
+    return params.join('&');
+  };
 
-// recursively serialize an object into a query string
-$.serialize = function(object, prefix) {
-  var params = [];
-  for (var property in object) {
-    if (object.hasOwnProperty(property)) {
-      var key;
+  // ----------------------------------------
+  // Serialize a JSON object into a query string
+  // ----------------------------------------
+  $.serialize = function(object) {
+    return _recursiveSerialize(object);
+  };
 
-      // always set a usable value
-      var value = object[property];
-
-      // if we have a prefix
-      if (prefix) {
-        // it is a nested value
-        // wrap property as key
-        key = prefix + '[' + property + ']';
-      } else {
-        // if not is it a normal key
-        key = property;
-      }
-
-      var encoded;
-      // if the value is an object
-      if (typeof value === 'object') {
-        // and it has values
-        if ((Array.isArray(value) && value.length > 0) ||
-            (Object.keys(value).length > 0)) {
-          // serialize it recursively
-          // use the current key as prefix
-          encoded = $.serialize(value, key);
-        } else {
-          // if object is empty
-          // represent it with key[]
-          // so server creates an emtpy array
-          encoded = key + '[]';
-        }
-      } else {
-        // otherwise url encode the key value pair
-        key = encodeURIComponent(key);
-        value = encodeURIComponent(value);
-
-        // join with =
-        encoded = key + '=' + value;
-      }
-      // push to array
-      params.push(encoded);
+  // ----------------------------------------
+  // $.ajax helper methods
+  // ----------------------------------------
+  // ensures that the url
+  // is properly set on
+  // options
+  var _setAJAXOptions = function(url, options) {
+    if (typeof url === 'object') {
+      options = url;
+      url = options['url'];
     }
-  }
-  // join all params with separating &
-  return params.join('&');
-};
 
-// ajax
-$.ajax = function(url, options) {
-  // if the url is an object
-  if (typeof url === 'object') {
-    // use it as the options object
-    options = url;
-    // set the url from options
-    url = options['url'];
-  }
+    if (url === undefined) {
+      url = window.location.href;
+    }
+    options['url'] = url;
 
-  // if url was not defined
-  if (url === undefined) {
-    // it defaults to the current page
-    url = window.location.href;
-  }
+    return options;
+  };
 
-  // set the value of this
-  var context = (options['context']) ? options['context'] : options;
+  // ----------------------------------------
+  // Make a general AJAX request
+  // ----------------------------------------
+  $.ajax = function(url, options) {
+    options = _setAJAXOptions(url, options);
 
-  // initialize the xhr
-  var xhr = new XMLHttpRequest();
+    var context = (options['context']) ? options['context'] : options;
+    var method = (options['method']) ? options['method'] : 'GET';
+    var async = (options['async']) ? options['async'] : true;
 
-  // set method
-  var method = (options['method']) ? options['method'] : 'GET';
+    var complete = (options['complete']) ? options['complete'] : function(){};
+    var success = (options['success']) ? options['success'] : function(){};
+    var error = (options['error']) ? options['error'] : function(){};
 
-  // set async
-  var async = (options['async']) ? options['async'] : true;
+    var data = (options['data']) ? options['data'] : null;
+    if (data && typeof data !== 'string') {
+      data = $.serialize(data);
+    }
 
-  // set the complete callback
-  var complete;
-  if (options['complete']) {
-    complete = options['complete'];
-  } else {
-    complete = function(){};
-  }
+    var status;
+    
+    var xhr = new XMLHttpRequest();
 
-  // hoist internal status
-  var status;
-
-  // set error callback
-  var error;
-  if (options['error']) {
-    error = options['error'];
-  } else {
-    error = function(){};
-  }
-  xhr.addEventListener('error', function(e) {
-    status = 'error';
-    error.call(context, xhr, status, xhr.statusText);
-    complete.call(context, xhr, status);
-  });
-
-  // set the success callback
-  var success;
-  if (options['success']) {
-    success = options['success'];
-  } else {
-    success = function(){};
-  }
-  xhr.addEventListener('load', function(e) {
-    if (xhr.status >= 200 && xhr.status < 300) {
-      status = 'success';
-      success.call(context, xhr.responseText, status, xhr);
-    } else {
+    xhr.addEventListener('error', function(e) {
       status = 'error';
       error.call(context, xhr, status, xhr.statusText);
+      complete.call(context, xhr, status);
+    });
+
+    xhr.addEventListener('load', function(e) {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        status = 'success';
+        success.call(context, xhr.responseText, status, xhr);
+      } else {
+        status = 'error';
+        error.call(context, xhr, status, xhr.statusText);
+      }
+      complete.call(context, xhr, status);
+    });
+
+    var url = (method === 'GET') ? options['url'] + '?' + data : options['url'];
+
+    xhr.open(method, url, async);
+
+    if (method &&
+        method.toUpperCase() === 'POST') {
+      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
     }
-    complete.call(context, xhr, status);
-  });
 
-  // set data
-  var data = (options['data']) ? options['data'] : null;
-  if (data && typeof data !== 'string') {
-    data = $.serialize(data);
-  }
+    xhr.send(data);
+  };
 
-  // if method is GET
-  // append data as query string
-  if (method === 'GET') {
-    url += '?' + data;
-  }
+  // ----------------------------------------
+  // Make a GET request
+  // ----------------------------------------
+  $.get = function(url, data, success, dataType) {
+    var options;
+    if (typeof url === 'object') {
+      options = url;
+      url = options['url'];
+    } else {
+      options = {
+        url: url,
+        data: data,
+        success: success,
+        dataType: dataType,
+        method: 'GET'
+      };
+    }
+    $.ajax(options);
+  };
 
-  // open the connection
-  xhr.open(method, url, async);
+  // ----------------------------------------
+  // Make a POST request
+  // ----------------------------------------
+  $.post = function(url, data, success, dataType) {
+    var options;
+    if (typeof url === 'object') {
+      options = url;
+      url = options['url'];
+    } else {
+      options = {
+        url: url,
+        data: data,
+        success: success,
+        dataType: dataType,
+        method: 'POST'
+      };
+    }
+    $.ajax(options);
+  };
 
-  // set POST headers
-  if (method &&
-      method.toUpperCase() === 'POST') {
-    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-  }
+  return $;
 
-  // send
-  xhr.send(data);
-};
-
-// get
-$.get = function(url, data, success, dataType) {
-  var options;
-  if (typeof url === 'object') {
-    options = url;
-    url = options['url'];
-  } else {
-    options = {
-      url: url,
-      data: data,
-      success: success,
-      dataType: dataType,
-      method: 'GET'
-    };
-  }
-  $.ajax(options);
-};
-
-// post
-$.post = function(url, data, success, dataType) {
-  var options;
-  if (typeof url === 'object') {
-    options = url;
-    url = options['url'];
-  } else {
-    options = {
-      url: url,
-      data: data,
-      success: success,
-      dataType: dataType,
-      method: 'POST'
-    };
-  }
-  $.ajax(options);
-};
+})();
 

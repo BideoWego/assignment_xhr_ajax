@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Building $.ajax</title>
+
+    <script src="/script.js"></script>
+    <script src="/puts.js"></script>
+    <style>
+      pre {
+        word-wrap: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>
+        Building $.ajax (Serialization)
+      </h1>
+      <div>
+        <a href="/">Index</a>
+        <a href="/serialization.html">Serialization</a>
+        <a href="/jquery.html">jQuery</a>
+      </div>
+      <pre id="output"></pre>
+    </div>
+
+    <script>
+      var object = {
+        0: 1,
+        1: 'foo',
+        bar: 1,
+        foo: 'bar',
+        biz: {
+          1: 'foo',
+          foo: [1,2,3,4, {foo: 'bar'}],
+          bar: {biz: [1,2,3,4], baz:[{}, {}, {}]}
+        }
+      };
+      var serialized = $.serialize(object);
+      var deserialized = $.deserialize(serialized);
+      puts(serialized);
+      puts(deserialized);
+    </script>
+  </body>
+</html>
+
